@@ -52,7 +52,7 @@ class TriageResult(BaseModel):
                 "complex": "hard",
                 "high": "hard",
             }
-            return mapping.get(v.lower().strip(), v)
+            return mapping.get(v.lower().strip(), "medium")
         return v  # type: ignore[return-value]
 
     @property
