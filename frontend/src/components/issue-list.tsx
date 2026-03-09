@@ -8,7 +8,6 @@ interface IssueListProps {
   trackedIssues: Map<number, TrackedIssue>;
   onTriage: (issue: GitHubIssue) => void;
   onFix: (issue: GitHubIssue) => void;
-  onSync: (sessionId: string) => void;
   triageLoadingIssue: number | null;
   fixLoadingIssue: number | null;
   loading: boolean;
@@ -19,7 +18,6 @@ export default function IssueList({
   trackedIssues,
   onTriage,
   onFix,
-  onSync,
   triageLoadingIssue,
   fixLoadingIssue,
   loading,
@@ -61,8 +59,6 @@ export default function IssueList({
       </div>
       {issues.map((issue) => {
         const tracked = trackedIssues.get(issue.number);
-        const activeSessionId =
-          tracked?.fix_session_id || tracked?.triage_session_id;
 
         return (
           <IssueCard
@@ -71,13 +67,6 @@ export default function IssueList({
             tracked={tracked}
             onTriage={() => onTriage(issue)}
             onFix={() => onFix(issue)}
-            onSync={() => {
-              if (activeSessionId) {
-                onSync(activeSessionId);
-              } else {
-                console.warn("No active session ID to sync for issue", issue.number);
-              }
-            }}
             triageLoading={triageLoadingIssue === issue.number}
             fixLoading={fixLoadingIssue === issue.number}
           />

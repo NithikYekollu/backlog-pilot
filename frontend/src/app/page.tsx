@@ -129,7 +129,6 @@ export default function Home() {
   );
 
   const handleSync = useCallback(async (sessionId: string) => {
-    setError(null);
     try {
       const result = await syncSession(sessionId);
       const ti = result.tracked_issue;
@@ -152,7 +151,9 @@ export default function Home() {
               }
             }
           }
-          next.set(ti.issue_number, ti);
+          if (ti.issue_number !== 0) {
+            next.set(ti.issue_number, ti);
+          }
           return next;
         });
       }
@@ -228,7 +229,6 @@ export default function Home() {
             trackedIssues={trackedIssues}
             onTriage={handleTriage}
             onFix={handleFix}
-            onSync={handleSync}
             triageLoadingIssue={triageLoadingIssue}
             fixLoadingIssue={fixLoadingIssue}
             loading={loading}

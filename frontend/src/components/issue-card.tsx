@@ -1,7 +1,6 @@
 /**
  * Issue card component — displays a single GitHub issue with triage/fix controls.
  *
- * TODO: Add auto-polling for session status instead of manual "Refresh Status".
  * TODO: The status field names ("running", "finished", etc.) come from the
  *       Devin API. Update statusLabels if the API adds new states.
  */
@@ -21,7 +20,6 @@ interface IssueCardProps {
   tracked?: TrackedIssue;
   onTriage: () => void;
   onFix: () => void;
-  onSync: () => void;
   triageLoading: boolean;
   fixLoading: boolean;
 }
@@ -61,13 +59,11 @@ export default function IssueCard({
   tracked,
   onTriage,
   onFix,
-  onSync,
   triageLoading,
   fixLoading,
 }: IssueCardProps) {
   const hasTriage = tracked?.triage_result;
   const triageRunning = tracked?.triage_status === "running";
-  const fixRunning = tracked?.fix_status === "running";
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-5 hover:shadow-md transition-shadow">
@@ -118,15 +114,6 @@ export default function IssueCard({
               className="rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100 disabled:opacity-50 transition-colors whitespace-nowrap"
             >
               {triageLoading ? "Starting..." : "Run Triage"}
-            </button>
-          )}
-
-          {(triageRunning || fixRunning || tracked?.triage_status === "blocked" || tracked?.fix_status === "blocked" || (tracked?.triage_status === "finished" && !hasTriage) || (tracked?.fix_status === "finished" && !tracked?.pr_url)) && (
-            <button
-              onClick={onSync}
-              className="rounded-lg bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-100 transition-colors whitespace-nowrap"
-            >
-              Refresh Status
             </button>
           )}
 
