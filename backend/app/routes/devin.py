@@ -84,6 +84,18 @@ Update your `structured_output` immediately and keep refining it as you analyze.
 }}
 
 Do not include any fields outside this schema. Be concise but specific.
+
+### Slack notification
+
+After completing your triage analysis and updating structured_output, post a concise summary to the connected Slack channel. Format it nicely for Slack with emoji. Include:
+- Issue number and title
+- One-line summary
+- Difficulty rating
+- Suspected files
+- Whether it is safe to autofix
+- A note that full details are available in Backlog Pilot
+
+Keep the Slack message short and scannable. Do this as your final step before finishing.
 """
 
 FIX_PROMPT_TEMPLATE = """You are fixing GitHub issue #{issue_number} from the repository {repo}.

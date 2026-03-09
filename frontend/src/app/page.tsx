@@ -17,7 +17,6 @@ import {
   createTriageSession,
   createFixSession,
   syncSession,
-  sendSessionMessage,
 } from "@/lib/api";
 
 export default function Home() {
@@ -32,7 +31,6 @@ export default function Home() {
   const [fixLoadingIssue, setFixLoadingIssue] = useState<number | null>(null);
   const [hasApiKeys, setHasApiKeys] = useState(true);
   const [slackNotifiedIssues, setSlackNotifiedIssues] = useState<Set<number>>(new Set());
-  const [slackLoadingIssue, setSlackLoadingIssue] = useState<number | null>(null);
 
   const handleLoadIssues = useCallback(async (repoName: string) => {
     setRepo(repoName);
@@ -131,64 +129,27 @@ export default function Home() {
     [repo, trackedIssues]
   );
 
-  const sendSlackNotification = useCallback(
-    async (issueNumber: number, title: string, sessionId: string, triageResult: TrackedIssue["triage_result"]) => {
-      setSlackLoadingIssue(issueNumber);
-      try {
-        const summary = triageResult?.issue_summary || triageResult?.summary || title;
-        const difficulty = triageResult?.difficulty || "unknown";
-        const area = triageResult?.likely_area || "unknown";
-        const files = triageResult?.suspected_files?.join(", ") || "none identified";
-        const autofix = triageResult?.safe_to_autofix ? "Yes" : "No";
-
-        const slackMessage = `Please post the following triage summary to the connected Slack channel:
-
----
-Triage complete for **${repo}#${issueNumber}: ${title}**
-
-- **Summary:** ${summary}
-- **Difficulty:** ${difficulty}
-- **Area:** ${area}
-- **Suspected files:** ${files}
-- **Safe to autofix:** ${autofix}
-- **Dashboard:** View full details in Backlog Pilot
----
-
-Format it nicely for Slack with emoji. Keep it concise.`;
-
-        await sendSessionMessage(sessionId, slackMessage);
-        setSlackNotifiedIssues((prev) => new Set(prev).add(issueNumber));
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Failed to send Slack notification";
-        setError(message);
-      } finally {
-        setSlackLoadingIssue(null);
-      }
-    },
-    [repo]
-  );
-
   // -----------------------------------------------------------------------
-  // Auto-notify Slack when triage completes
+  // Auto-mark Slack notified when triage completes.
+  // The triage prompt itself includes a Slack notification step, so Devin
+  // posts to Slack while the session is still active.  The frontend just
+  // tracks which issues have been notified to show the badge.
   // -----------------------------------------------------------------------
   const prevTrackedRef = useRef<Map<number, TrackedIssue>>(new Map());
 
   useEffect(() => {
     const prev = prevTrackedRef.current;
     for (const [num, tracked] of Array.from(trackedIssues.entries())) {
-      // Skip if already notified or currently sending
-      if (slackNotifiedIssues.has(num) || slackLoadingIssue === num) continue;
-      // Check if triage_result just appeared (wasn't there before)
+      if (slackNotifiedIssues.has(num)) continue;
       const prevTracked = prev.get(num);
       if (tracked.triage_result && (!prevTracked || !prevTracked.triage_result)) {
-        const sessionId = tracked.triage_session_id;
-        if (sessionId) {
-          sendSlackNotification(num, tracked.title || `Issue #${num}`, sessionId, tracked.triage_result);
-        }
+        // Triage just completed — Devin will have posted to Slack as part
+        // of the triage prompt.  Mark as notified so the badge appears.
+        setSlackNotifiedIssues((prev) => new Set(prev).add(num));
       }
     }
     prevTrackedRef.current = new Map(trackedIssues);
-  }, [trackedIssues, slackNotifiedIssues, slackLoadingIssue, sendSlackNotification]);
+  }, [trackedIssues, slackNotifiedIssues]);
 
   const handleSync = useCallback(async (sessionId: string) => {
     try {
@@ -295,7 +256,7 @@ Format it nicely for Slack with emoji. Keep it concise.`;
             triageLoadingIssue={triageLoadingIssue}
             fixLoadingIssue={fixLoadingIssue}
             slackNotifiedIssues={slackNotifiedIssues}
-            slackLoadingIssue={slackLoadingIssue}
+            slackLoadingIssue={null}
             loading={loading}
           />
         )}
