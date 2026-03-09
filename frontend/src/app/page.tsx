@@ -136,6 +136,22 @@ export default function Home() {
       if (ti) {
         setTrackedIssues((prev) => {
           const next = new Map(prev);
+          // If the backend returned a recovered session (issue_number=0),
+          // find the local issue that owns this session ID and merge.
+          if (ti.issue_number === 0) {
+            for (const [num, existing] of prev.entries()) {
+              if (existing.triage_session_id === sessionId || existing.fix_session_id === sessionId) {
+                next.set(num, {
+                  ...existing,
+                  triage_status: ti.triage_status || existing.triage_status,
+                  fix_status: ti.fix_status || existing.fix_status,
+                  triage_result: ti.triage_result || existing.triage_result,
+                  pr_url: ti.pr_url || existing.pr_url,
+                });
+                return next;
+              }
+            }
+          }
           next.set(ti.issue_number, ti);
           return next;
         });

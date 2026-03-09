@@ -296,14 +296,33 @@ async def sync_session(session_id: str):
             break
 
     if not tracked:
-        logger.warning("sync_session called for unknown session %s", session_id)
-        return {"status": status, "session_data": session.raw}
+        # Backend lost in-memory state (e.g. dev-mode reload).
+        # Reconstruct a minimal TrackedIssue from the Devin API response
+        # so the frontend still gets useful data (PR URL, triage result).
+        logger.warning(
+            "sync_session called for unknown session %s — reconstructing from API",
+            session_id,
+        )
+        tracked = TrackedIssue(
+            issue_number=0,
+            repo="unknown",
+            title="(recovered session)",
+            fix_session_id=session_id,
+            triage_session_id=session_id,
+        )
+        # When we don't know the session type, try both extractions
+        is_triage = False  # doesn't matter — we'll try both below
 
     if is_triage:
         tracked.triage_status = status
         _try_extract_triage_result(tracked, session)
     else:
         tracked.fix_status = status
+        _try_extract_pr_url(tracked, session)
+
+    # Always try PR URL extraction regardless of session type
+    # (in case of recovered sessions or sessions that produce PRs unexpectedly)
+    if not tracked.pr_url:
         _try_extract_pr_url(tracked, session)
 
     upsert_tracked_issue(tracked)
