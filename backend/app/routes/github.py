@@ -7,6 +7,7 @@ Fetches issues from GitHub's REST API and filters out pull requests
 
 import logging
 import os
+import re
 
 from fastapi import APIRouter, HTTPException, Query
 import httpx
@@ -16,6 +17,14 @@ logger = logging.getLogger("backlog_pilot.routes.github")
 router = APIRouter()
 
 GITHUB_API_BASE = "https://api.github.com"
+
+_REPO_RE = re.compile(r"^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$")
+
+
+def _validate_repo(repo: str) -> None:
+    """Ensure repo matches owner/repo format to prevent path traversal."""
+    if not _REPO_RE.match(repo):
+        raise HTTPException(status_code=400, detail="Invalid repo format. Expected 'owner/repo'.")
 
 
 def _github_headers() -> dict[str, str]:
@@ -39,6 +48,7 @@ async def list_issues(
     labels: str = Query("", description="Comma-separated list of label names"),
 ):
     """Fetch issues from a GitHub repository."""
+    _validate_repo(repo)
     url = f"{GITHUB_API_BASE}/repos/{repo}/issues"
     params: dict[str, str | int] = {
         "state": state,
@@ -84,6 +94,7 @@ async def get_issue(
     issue_number: int = 0,
 ):
     """Fetch a single issue from a GitHub repository."""
+    _validate_repo(repo)
     url = f"{GITHUB_API_BASE}/repos/{repo}/issues/{issue_number}"
 
     logger.info("Fetching issue #%d from %s", issue_number, repo)

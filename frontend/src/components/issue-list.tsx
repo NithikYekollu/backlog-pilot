@@ -71,7 +71,13 @@ export default function IssueList({
             tracked={tracked}
             onTriage={() => onTriage(issue)}
             onFix={() => onFix(issue)}
-            onSync={() => activeSessionId && onSync(activeSessionId)}
+            onSync={() => {
+              if (activeSessionId) {
+                onSync(activeSessionId);
+              } else {
+                console.warn("No active session ID to sync for issue", issue.number);
+              }
+            }}
             triageLoading={triageLoadingIssue === issue.number}
             fixLoading={fixLoadingIssue === issue.number}
           />

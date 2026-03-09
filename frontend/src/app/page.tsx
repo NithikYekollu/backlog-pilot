@@ -35,6 +35,7 @@ export default function Home() {
     setRepo(repoName);
     setLoading(true);
     setError(null);
+    setTrackedIssues(new Map());
     try {
       const data = await fetchIssues(repoName, {
         state: "open",
@@ -65,7 +66,9 @@ export default function Home() {
         );
         setTrackedIssues((prev) => {
           const next = new Map(prev);
+          const existing = next.get(issue.number);
           next.set(issue.number, {
+            ...existing,
             issue_number: issue.number,
             repo,
             title: issue.title,
