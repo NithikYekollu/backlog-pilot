@@ -198,7 +198,7 @@ export default function Home() {
     const activeSessions: string[] = [];
 
     for (const t of Array.from(trackedIssues.values())) {
-      if (t.triage_session_id && t.triage_status && !TERMINAL.has(t.triage_status) && !t.triage_result) {
+      if (t.triage_session_id && t.triage_status && !TERMINAL.has(t.triage_status)) {
         activeSessions.push(t.triage_session_id);
       }
       if (t.fix_session_id && t.fix_status && !TERMINAL.has(t.fix_status) && !t.pr_url) {
