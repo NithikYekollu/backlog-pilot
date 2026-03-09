@@ -120,6 +120,25 @@ export async function sendSessionMessage(
   });
 }
 
+export async function notifySlack(
+  repo: string,
+  issueNumber: number,
+  title: string,
+  triageResult: TriageResult,
+  dashboardUrl?: string
+): Promise<{ ok: boolean; error?: string }> {
+  return apiFetch("/api/devin/notify-slack", {
+    method: "POST",
+    body: JSON.stringify({
+      repo,
+      issue_number: issueNumber,
+      title,
+      triage_result: triageResult,
+      dashboard_url: dashboardUrl,
+    }),
+  });
+}
+
 export async function getTrackedIssues(): Promise<TrackedIssue[]> {
   return apiFetch("/api/devin/tracked");
 }

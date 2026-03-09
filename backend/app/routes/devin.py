@@ -13,6 +13,7 @@ from app.models import (
     TriageRequest,
     FixRequest,
     MessageRequest,
+    SlackNotifyRequest,
     TrackedIssue,
     TriageResult,
 )
@@ -26,6 +27,7 @@ from app.services.devin_api import (
     get_last_assistant_text,
     extract_pr_url,
 )
+from app.services.slack import post_triage_summary, get_webhook_url
 from app.store import get_tracked_issue, upsert_tracked_issue, get_all_tracked_issues
 
 logger = logging.getLogger("backlog_pilot.routes.devin")
@@ -85,17 +87,6 @@ Update your `structured_output` immediately and keep refining it as you analyze.
 
 Do not include any fields outside this schema. Be concise but specific.
 
-### Slack notification
-
-After completing your triage analysis and updating structured_output, post a concise summary to the connected Slack channel. Format it nicely for Slack with emoji. Include:
-- Issue number and title
-- One-line summary
-- Difficulty rating
-- Suspected files
-- Whether it is safe to autofix
-- A note that full details are available in Backlog Pilot
-
-Keep the Slack message short and scannable. Do this as your final step before finishing.
 """
 
 FIX_PROMPT_TEMPLATE = """You are fixing GitHub issue #{issue_number} from the repository {repo}.
@@ -359,6 +350,37 @@ async def sync_session(session_id: str):
         "tracked_issue": tracked.model_dump(),
         "session_data": session.raw,
     }
+
+
+@router.post("/notify-slack")
+async def notify_slack(request: SlackNotifyRequest):
+    """Post a triage summary to Slack via incoming webhook.
+
+    Called by the frontend automatically when triage completes.
+    Returns {"ok": true} on success, {"ok": false, "error": "..."} on failure.
+    """
+    webhook_url = get_webhook_url()
+    if not webhook_url:
+        logger.warning("notify-slack called but SLACK_WEBHOOK_URL is not configured")
+        return {"ok": False, "error": "SLACK_WEBHOOK_URL not configured on server"}
+
+    tr = request.triage_result
+    ok = await post_triage_summary(
+        repo=request.repo,
+        issue_number=request.issue_number,
+        title=request.title,
+        summary=tr.display_summary,
+        difficulty=tr.difficulty.value,
+        likely_area=tr.likely_area,
+        suspected_files=tr.suspected_files,
+        safe_to_autofix=tr.display_autofix,
+        recommended_next_step=tr.display_approach,
+        dashboard_url=request.dashboard_url,
+    )
+
+    if ok:
+        return {"ok": True}
+    return {"ok": False, "error": "Failed to post to Slack webhook — check server logs"}
 
 
 @router.get("/tracked")

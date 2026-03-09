@@ -105,3 +105,12 @@ class FixRequest(BaseModel):
 
 class MessageRequest(BaseModel):
     message: str
+
+
+class SlackNotifyRequest(BaseModel):
+    """Request body for the notify-slack endpoint."""
+    repo: str
+    issue_number: int
+    title: str
+    triage_result: TriageResult
+    dashboard_url: Optional[str] = None
