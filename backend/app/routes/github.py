@@ -1,6 +1,17 @@
+"""
+Routes for GitHub API proxying.
+
+Fetches issues from GitHub's REST API and filters out pull requests
+(which GitHub includes in the /issues endpoint).
+"""
+
+import logging
 import os
+
 from fastapi import APIRouter, HTTPException, Query
 import httpx
+
+logger = logging.getLogger("backlog_pilot.routes.github")
 
 router = APIRouter()
 
@@ -8,6 +19,8 @@ GITHUB_API_BASE = "https://api.github.com"
 
 
 def _github_headers() -> dict[str, str]:
+    # TODO: Set GITHUB_TOKEN in backend/.env for higher rate limits.
+    #       Without a token, GitHub allows only 60 requests/hour.
     token = os.environ.get("GITHUB_TOKEN", "")
     headers = {"Accept": "application/vnd.github+json"}
     if token:
@@ -37,25 +50,31 @@ async def list_issues(
     if labels:
         params["labels"] = labels
 
+    logger.info("Fetching issues from %s (state=%s, sort=%s, direction=%s)", repo, state, sort, direction)
+
     async with httpx.AsyncClient() as client:
         try:
             resp = await client.get(url, headers=_github_headers(), params=params)
             resp.raise_for_status()
         except httpx.HTTPStatusError as e:
+            logger.error("GitHub API error %d for %s: %s", e.response.status_code, repo, e.response.text[:200])
             raise HTTPException(
                 status_code=e.response.status_code,
                 detail=f"GitHub API error: {e.response.text}",
             )
         except httpx.RequestError as e:
+            logger.error("Failed to reach GitHub API: %s", e)
             raise HTTPException(
                 status_code=502,
                 detail=f"Failed to reach GitHub API: {str(e)}",
             )
 
     # Filter out pull requests (GitHub returns PRs in the issues endpoint)
-    issues = [
-        issue for issue in resp.json() if "pull_request" not in issue
-    ]
+    raw_items = resp.json()
+    issues = [issue for issue in raw_items if "pull_request" not in issue]
+
+    logger.info("GitHub returned %d items, %d after filtering PRs", len(raw_items), len(issues))
+
     return issues
 
 
@@ -67,16 +86,20 @@ async def get_issue(
     """Fetch a single issue from a GitHub repository."""
     url = f"{GITHUB_API_BASE}/repos/{repo}/issues/{issue_number}"
 
+    logger.info("Fetching issue #%d from %s", issue_number, repo)
+
     async with httpx.AsyncClient() as client:
         try:
             resp = await client.get(url, headers=_github_headers())
             resp.raise_for_status()
         except httpx.HTTPStatusError as e:
+            logger.error("GitHub API error %d for %s#%d", e.response.status_code, repo, issue_number)
             raise HTTPException(
                 status_code=e.response.status_code,
                 detail=f"GitHub API error: {e.response.text}",
             )
         except httpx.RequestError as e:
+            logger.error("Failed to reach GitHub API: %s", e)
             raise HTTPException(
                 status_code=502,
                 detail=f"Failed to reach GitHub API: {str(e)}",

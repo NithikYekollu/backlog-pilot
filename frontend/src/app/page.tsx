@@ -1,3 +1,9 @@
+/**
+ * Main dashboard page for Backlog Pilot.
+ *
+ * Thin vertical slice: load issues -> run triage -> view results -> approve fix.
+ * State is held in React hooks (no external store needed for MVP).
+ */
 "use client";
 
 import { useState, useCallback } from "react";
@@ -123,10 +129,11 @@ export default function Home() {
     setError(null);
     try {
       const result = await syncSession(sessionId);
-      if (result.tracked_issue) {
+      const ti = result.tracked_issue;
+      if (ti) {
         setTrackedIssues((prev) => {
           const next = new Map(prev);
-          next.set(result.tracked_issue!.issue_number, result.tracked_issue!);
+          next.set(ti.issue_number, ti);
           return next;
         });
       }

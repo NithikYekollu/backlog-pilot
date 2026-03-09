@@ -1,5 +1,13 @@
+/**
+ * API client for the Backlog Pilot backend.
+ *
+ * TODO: Update NEXT_PUBLIC_API_URL in frontend/.env.local if the backend
+ *       is deployed to a different host.
+ */
+
 import { GitHubIssue, TrackedIssue, TriageResult } from "./types";
 
+// TODO: For production, set NEXT_PUBLIC_API_URL to the deployed backend URL.
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
@@ -42,7 +50,12 @@ export async function fetchIssues(
   return apiFetch<GitHubIssue[]>(`/api/github/issues?${params}`);
 }
 
+// ---------------------------------------------------------------------------
 // Devin endpoints
+// TODO: These endpoints require DEVIN_API_KEY to be set in backend/.env.
+//       Without it, triage and fix calls will return 503.
+// ---------------------------------------------------------------------------
+
 export async function createTriageSession(
   repo: string,
   issueNumber: number,

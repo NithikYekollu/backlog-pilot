@@ -1,3 +1,10 @@
+/**
+ * Issue card component — displays a single GitHub issue with triage/fix controls.
+ *
+ * TODO: Add auto-polling for session status instead of manual "Refresh Status".
+ * TODO: The status field names ("running", "finished", etc.) come from the
+ *       Devin API. Update statusLabels if the API adds new states.
+ */
 "use client";
 
 import { GitHubIssue, TrackedIssue } from "@/lib/types";
