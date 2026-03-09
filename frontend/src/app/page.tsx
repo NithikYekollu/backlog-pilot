@@ -33,7 +33,7 @@ export default function Home() {
       const data = await fetchIssues(repoName, {
         state: "open",
         sort: "updated",
-        direction: "asc",
+        direction: "desc",
         per_page: 30,
       });
       setIssues(data);

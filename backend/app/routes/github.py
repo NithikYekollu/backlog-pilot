@@ -20,7 +20,7 @@ async def list_issues(
     repo: str = Query(..., description="GitHub repo in owner/repo format"),
     state: str = Query("open", description="Issue state: open, closed, all"),
     sort: str = Query("updated", description="Sort by: created, updated, comments"),
-    direction: str = Query("asc", description="Sort direction: asc, desc"),
+    direction: str = Query("desc", description="Sort direction: asc, desc"),
     per_page: int = Query(30, ge=1, le=100),
     page: int = Query(1, ge=1),
     labels: str = Query("", description="Comma-separated list of label names"),
