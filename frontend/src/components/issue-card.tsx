@@ -7,7 +7,14 @@
  */
 "use client";
 
-import { GitHubIssue, TrackedIssue } from "@/lib/types";
+import {
+  GitHubIssue,
+  TrackedIssue,
+  getTriageSummary,
+  getTriageApproach,
+  getTriageAutofix,
+  getTriageDifficulty,
+} from "@/lib/types";
 
 interface IssueCardProps {
   issue: GitHubIssue;
@@ -31,19 +38,13 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(diffDays / 365)}y ago`;
 }
 
-const severityColors: Record<string, string> = {
-  critical: "bg-red-100 text-red-800 border-red-200",
-  high: "bg-orange-100 text-orange-800 border-orange-200",
+const difficultyColors: Record<string, string> = {
+  easy: "bg-green-100 text-green-800 border-green-200",
   medium: "bg-yellow-100 text-yellow-800 border-yellow-200",
-  low: "bg-green-100 text-green-800 border-green-200",
-};
-
-const categoryColors: Record<string, string> = {
-  bug: "bg-red-50 text-red-700",
-  feature: "bg-blue-50 text-blue-700",
-  refactor: "bg-purple-50 text-purple-700",
-  docs: "bg-teal-50 text-teal-700",
-  infra: "bg-gray-100 text-gray-700",
+  hard: "bg-red-100 text-red-800 border-red-200",
+  // Backward-compat with old schema
+  small: "bg-green-100 text-green-800 border-green-200",
+  large: "bg-red-100 text-red-800 border-red-200",
 };
 
 const statusLabels: Record<string, { label: string; color: string }> = {
@@ -128,7 +129,7 @@ export default function IssueCard({
             </button>
           )}
 
-          {hasTriage && tracked?.triage_result?.can_auto_fix && !tracked.fix_session_id && (
+          {hasTriage && tracked?.triage_result && getTriageAutofix(tracked.triage_result) && !tracked.fix_session_id && (
             <button
               onClick={onFix}
               disabled={fixLoading}
@@ -160,41 +161,7 @@ export default function IssueCard({
 
       {/* Triage Result */}
       {hasTriage && tracked?.triage_result && (
-        <div className="mt-4 rounded-lg border border-gray-100 bg-gray-50 p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-              Triage Result
-            </span>
-            <span
-              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border ${
-                severityColors[tracked.triage_result.severity] || "bg-gray-100 text-gray-700"
-              }`}
-            >
-              {tracked.triage_result.severity}
-            </span>
-            <span
-              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                categoryColors[tracked.triage_result.category] || "bg-gray-100 text-gray-700"
-              }`}
-            >
-              {tracked.triage_result.category}
-            </span>
-            <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
-              {tracked.triage_result.estimated_effort} effort
-            </span>
-          </div>
-          <p className="text-sm text-gray-700 mb-2">
-            <strong>Summary:</strong> {tracked.triage_result.summary}
-          </p>
-          <p className="text-sm text-gray-600">
-            <strong>Approach:</strong> {tracked.triage_result.suggested_approach}
-          </p>
-          {tracked.triage_result.can_auto_fix && (
-            <p className="text-xs text-emerald-600 mt-2 font-medium">
-              Devin can auto-fix this issue
-            </p>
-          )}
-        </div>
+        <TriageResultPanel result={tracked.triage_result} />
       )}
 
       {/* Fix Status */}
@@ -223,6 +190,100 @@ export default function IssueCard({
             </a>
           )}
         </div>
+      )}
+    </div>
+  );
+}
+
+function TriageResultPanel({ result }: { result: NonNullable<TrackedIssue["triage_result"]> }) {
+  const summary = getTriageSummary(result);
+  const approach = getTriageApproach(result);
+  const autofix = getTriageAutofix(result);
+  const difficulty = getTriageDifficulty(result);
+
+  return (
+    <div className="mt-4 rounded-lg border border-gray-100 bg-gray-50 p-4">
+      {/* Header badges */}
+      <div className="flex items-center gap-2 mb-3 flex-wrap">
+        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+          Triage Result
+        </span>
+        {difficulty && (
+          <span
+            className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border ${
+              difficultyColors[difficulty] || "bg-gray-100 text-gray-700 border-gray-200"
+            }`}
+          >
+            {difficulty}
+          </span>
+        )}
+        {result.likely_area && (
+          <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+            {result.likely_area}
+          </span>
+        )}
+        {result.needs_human_clarification && (
+          <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 border border-amber-200">
+            Needs clarification
+          </span>
+        )}
+      </div>
+
+      {/* Summary */}
+      {summary && (
+        <p className="text-sm text-gray-700 mb-2">
+          <strong>Summary:</strong> {summary}
+        </p>
+      )}
+
+      {/* Recommended next step */}
+      {approach && (
+        <p className="text-sm text-gray-600 mb-2">
+          <strong>Next step:</strong> {approach}
+        </p>
+      )}
+
+      {/* Suspected files */}
+      {result.suspected_files && result.suspected_files.length > 0 && (
+        <div className="mb-2">
+          <strong className="text-xs text-gray-500">Suspected files:</strong>
+          <div className="flex flex-wrap gap-1 mt-1">
+            {result.suspected_files.map((file) => (
+              <code
+                key={file}
+                className="inline-flex items-center rounded bg-gray-100 px-1.5 py-0.5 text-xs font-mono text-gray-700"
+              >
+                {file}
+              </code>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Acceptance criteria */}
+      {result.acceptance_criteria && result.acceptance_criteria.length > 0 && (
+        <div className="mb-2">
+          <strong className="text-xs text-gray-500">Acceptance criteria:</strong>
+          <ul className="list-disc list-inside mt-1 space-y-0.5">
+            {result.acceptance_criteria.map((criterion, i) => (
+              <li key={i} className="text-xs text-gray-600">
+                {criterion}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Auto-fix indicator */}
+      {autofix && (
+        <p className="text-xs text-emerald-600 mt-2 font-medium">
+          Devin can auto-fix this issue
+        </p>
+      )}
+      {!autofix && result.needs_human_clarification && (
+        <p className="text-xs text-amber-600 mt-2 font-medium">
+          This issue needs human clarification before fixing
+        </p>
       )}
     </div>
   );

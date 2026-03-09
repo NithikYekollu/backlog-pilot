@@ -50,18 +50,23 @@ TRIAGE_PROMPT_TEMPLATE = """You are triaging GitHub issue #{issue_number} from t
 
 ---
 
-Please analyze this issue and provide a structured triage assessment. Respond with ONLY a JSON object (no markdown, no code fences) in exactly this format:
+Please analyze this issue and provide a structured triage assessment.
+Update your structured output immediately with the following JSON schema.
+Keep updating it as you refine your analysis.
 
 {{
-  "severity": "<critical|high|medium|low>",
-  "category": "<bug|feature|refactor|docs|infra>",
-  "estimated_effort": "<small|medium|large>",
-  "summary": "<one-sentence summary of the issue>",
-  "suggested_approach": "<brief description of how to fix/implement this>",
-  "can_auto_fix": <true|false>
+  "issue_summary": "<one-sentence summary of the issue>",
+  "likely_area": "<area of the codebase most likely affected, e.g. 'authentication', 'API layer'>",
+  "suspected_files": ["<file paths you think are involved>"],
+  "difficulty": "<easy|medium|hard>",
+  "safe_to_autofix": <true if Devin can confidently fix this autonomously, false otherwise>,
+  "needs_human_clarification": <true if the issue is ambiguous or missing info>,
+  "acceptance_criteria": ["<what must be true for this issue to be considered resolved>"],
+  "recommended_next_step": "<concrete next action, e.g. 'Patch validation logic in src/auth.ts'>"
 }}
 
-Be concise but specific in your summary and approach.
+Also respond with ONLY this JSON object in your message (no markdown, no code fences).
+Be concise but specific.
 """
 
 FIX_PROMPT_TEMPLATE = """Fix GitHub issue #{issue_number} from the repo {repo}.
@@ -79,6 +84,13 @@ Please:
 3. Implement the fix
 4. Create a pull request with your changes
 5. Make sure tests pass
+
+Update your structured output with progress as you work:
+{{
+  "status": "in_progress",
+  "current_task": "<what you are doing now>",
+  "pr_url": "<URL of the pull request once created>"
+}}
 """
 
 
@@ -163,13 +175,22 @@ async def create_fix_session(request: FixRequest):
     """Create a Devin session to fix a GitHub issue."""
     triage_context = ""
     if request.triage_result:
-        triage_context = (
-            f"**Triage Summary:** {request.triage_result.summary}\n"
-            f"**Suggested Approach:** {request.triage_result.suggested_approach}\n"
-            f"**Severity:** {request.triage_result.severity}\n"
-            f"**Category:** {request.triage_result.category}\n"
-            f"**Estimated Effort:** {request.triage_result.estimated_effort}\n"
-        )
+        tr = request.triage_result
+        parts: list[str] = []
+        if tr.display_summary:
+            parts.append(f"**Triage Summary:** {tr.display_summary}")
+        if tr.display_approach:
+            parts.append(f"**Recommended Next Step:** {tr.display_approach}")
+        if tr.likely_area:
+            parts.append(f"**Likely Area:** {tr.likely_area}")
+        if tr.suspected_files:
+            parts.append(f"**Suspected Files:** {', '.join(tr.suspected_files)}")
+        if tr.difficulty:
+            parts.append(f"**Difficulty:** {tr.difficulty.value}")
+        if tr.acceptance_criteria:
+            criteria = "\n".join(f"  - {c}" for c in tr.acceptance_criteria)
+            parts.append(f"**Acceptance Criteria:**\n{criteria}")
+        triage_context = "\n".join(parts)
 
     prompt = FIX_PROMPT_TEMPLATE.format(
         issue_number=request.issue_number,
@@ -274,38 +295,67 @@ async def list_tracked_issues():
 # ---------------------------------------------------------------------------
 
 def _try_extract_triage_result(tracked: TrackedIssue, session: DevinSessionResponse) -> None:
-    """Try to pull a TriageResult from the session's output."""
-    if tracked.triage_result:
-        return  # already have it
-    if session.status != "finished":
-        return
+    """Try to pull a TriageResult from the session's output.
 
+    Devin updates structured_output progressively, so we attempt extraction
+    even while the session is still running.  However, we only overwrite an
+    existing result if the new one has more fields populated.
+    """
     import json
 
-    # 1) Check structured_output first
-    # TODO: Verify that "structured_output" is the correct field name.
+    def _try_build(parsed: dict) -> TriageResult | None:
+        """Defensively build a TriageResult, ignoring unknown keys."""
+        try:
+            # Filter to only keys TriageResult knows about so extra fields
+            # from Devin don't cause validation errors.
+            known_keys = set(TriageResult.model_fields.keys())
+            filtered = {k: v for k, v in parsed.items() if k in known_keys}
+            return TriageResult(**filtered)
+        except Exception as exc:
+            logger.warning("Failed to build TriageResult: %s", exc)
+            return None
+
+    def _field_count(tr: TriageResult) -> int:
+        """Count how many meaningful fields are populated."""
+        count = 0
+        if tr.issue_summary:
+            count += 1
+        if tr.likely_area:
+            count += 1
+        if tr.suspected_files:
+            count += 1
+        if tr.acceptance_criteria:
+            count += 1
+        if tr.recommended_next_step:
+            count += 1
+        return count
+
+    best: TriageResult | None = tracked.triage_result
+
+    # 1) Check structured_output first (the preferred source)
     structured = session.structured_output
     if structured:
         raw_str = json.dumps(structured) if isinstance(structured, dict) else str(structured)
         parsed = parse_triage_json(raw_str)
         if parsed:
-            try:
-                tracked.triage_result = TriageResult(**parsed)
+            candidate = _try_build(parsed)
+            if candidate and (not best or _field_count(candidate) > _field_count(best)):
+                best = candidate
                 logger.info("Extracted triage result from structured_output")
-                return
-            except Exception as exc:
-                logger.warning("structured_output parsed but failed validation: %s", exc)
 
-    # 2) Fall back to last assistant message
-    last_text = get_last_assistant_text(session)
-    if last_text:
-        parsed = parse_triage_json(last_text)
-        if parsed:
-            try:
-                tracked.triage_result = TriageResult(**parsed)
-                logger.info("Extracted triage result from conversation")
-            except Exception as exc:
-                logger.warning("Conversation text parsed but failed validation: %s", exc)
+    # 2) Fall back to last assistant message (only if session is finished)
+    if session.status == "finished":
+        last_text = get_last_assistant_text(session)
+        if last_text:
+            parsed = parse_triage_json(last_text)
+            if parsed:
+                candidate = _try_build(parsed)
+                if candidate and (not best or _field_count(candidate) > _field_count(best)):
+                    best = candidate
+                    logger.info("Extracted triage result from conversation")
+
+    if best and best is not tracked.triage_result:
+        tracked.triage_result = best
 
 
 def _try_extract_pr_url(tracked: TrackedIssue, session: DevinSessionResponse) -> None:

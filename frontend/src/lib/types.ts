@@ -1,14 +1,40 @@
-export type Severity = "critical" | "high" | "medium" | "low";
-export type Category = "bug" | "feature" | "refactor" | "docs" | "infra";
-export type Effort = "small" | "medium" | "large";
+export type Difficulty = "easy" | "medium" | "hard";
 
 export interface TriageResult {
-  severity: Severity;
-  category: Category;
-  estimated_effort: Effort;
-  summary: string;
-  suggested_approach: string;
-  can_auto_fix: boolean;
+  // New structured schema fields
+  issue_summary?: string;
+  likely_area?: string;
+  suspected_files?: string[];
+  difficulty?: Difficulty;
+  safe_to_autofix?: boolean;
+  needs_human_clarification?: boolean;
+  acceptance_criteria?: string[];
+  recommended_next_step?: string;
+
+  // Backward-compat fields from old schema
+  severity?: string;
+  category?: string;
+  estimated_effort?: string;
+  summary?: string;
+  suggested_approach?: string;
+  can_auto_fix?: boolean;
+}
+
+/** Best-effort accessors that handle both old and new schema shapes. */
+export function getTriageSummary(tr: TriageResult): string {
+  return tr.issue_summary || tr.summary || "";
+}
+
+export function getTriageApproach(tr: TriageResult): string {
+  return tr.recommended_next_step || tr.suggested_approach || "";
+}
+
+export function getTriageAutofix(tr: TriageResult): boolean {
+  return tr.safe_to_autofix ?? tr.can_auto_fix ?? false;
+}
+
+export function getTriageDifficulty(tr: TriageResult): string {
+  return tr.difficulty || tr.estimated_effort || "";
 }
 
 export interface TrackedIssue {

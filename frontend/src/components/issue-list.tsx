@@ -62,7 +62,9 @@ export default function IssueList({
       {issues.map((issue) => {
         const tracked = trackedIssues.get(issue.number);
         const activeSessionId =
-          tracked?.fix_session_id || tracked?.triage_session_id;
+          (tracked?.fix_status === "running" ? tracked?.fix_session_id : null) ||
+          tracked?.triage_session_id ||
+          tracked?.fix_session_id;
 
         return (
           <IssueCard
