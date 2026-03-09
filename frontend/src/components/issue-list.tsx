@@ -9,7 +9,6 @@ interface IssueListProps {
   repo: string;
   onTriage: (issue: GitHubIssue) => void;
   onFix: (issue: GitHubIssue) => void;
-  onNotifySlack: (issue: GitHubIssue) => void;
   triageLoadingIssue: number | null;
   fixLoadingIssue: number | null;
   slackNotifiedIssues: Set<number>;
@@ -23,7 +22,6 @@ export default function IssueList({
   repo,
   onTriage,
   onFix,
-  onNotifySlack,
   triageLoadingIssue,
   fixLoadingIssue,
   slackNotifiedIssues,
@@ -76,7 +74,6 @@ export default function IssueList({
             repo={repo}
             onTriage={() => onTriage(issue)}
             onFix={() => onFix(issue)}
-            onNotifySlack={() => onNotifySlack(issue)}
             triageLoading={triageLoadingIssue === issue.number}
             fixLoading={fixLoadingIssue === issue.number}
             slackNotified={slackNotifiedIssues.has(issue.number)}

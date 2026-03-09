@@ -404,7 +404,7 @@ def _try_extract_triage_result(tracked: TrackedIssue, session: DevinSessionRespo
         parsed = parse_triage_json(raw_str)
         if parsed:
             candidate = _try_build(parsed)
-            if candidate and (not best or _field_count(candidate) > _field_count(best)):
+            if candidate and _field_count(candidate) > 0 and (not best or _field_count(candidate) > _field_count(best)):
                 best = candidate
                 logger.info("Extracted triage result from structured_output")
 
@@ -417,7 +417,7 @@ def _try_extract_triage_result(tracked: TrackedIssue, session: DevinSessionRespo
         parsed = parse_triage_json(last_text)
         if parsed:
             candidate = _try_build(parsed)
-            if candidate and (not best or _field_count(candidate) > _field_count(best)):
+            if candidate and _field_count(candidate) > 0 and (not best or _field_count(candidate) > _field_count(best)):
                 best = candidate
                 logger.info("Extracted triage result from conversation (status=%s)", session.status)
 

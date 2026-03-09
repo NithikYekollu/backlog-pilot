@@ -131,16 +131,11 @@ export default function Home() {
     [repo, trackedIssues]
   );
 
-  const handleNotifySlack = useCallback(
-    async (issue: GitHubIssue) => {
-      const tracked = trackedIssues.get(issue.number);
-      const sessionId = tracked?.triage_session_id;
-      if (!sessionId) return;
-
-      setSlackLoadingIssue(issue.number);
+  const sendSlackNotification = useCallback(
+    async (issueNumber: number, title: string, sessionId: string, triageResult: TrackedIssue["triage_result"]) => {
+      setSlackLoadingIssue(issueNumber);
       try {
-        const triageResult = tracked?.triage_result;
-        const summary = triageResult?.issue_summary || triageResult?.summary || issue.title;
+        const summary = triageResult?.issue_summary || triageResult?.summary || title;
         const difficulty = triageResult?.difficulty || "unknown";
         const area = triageResult?.likely_area || "unknown";
         const files = triageResult?.suspected_files?.join(", ") || "none identified";
@@ -149,7 +144,7 @@ export default function Home() {
         const slackMessage = `Please post the following triage summary to the connected Slack channel:
 
 ---
-Triage complete for **${repo}#${issue.number}: ${issue.title}**
+Triage complete for **${repo}#${issueNumber}: ${title}**
 
 - **Summary:** ${summary}
 - **Difficulty:** ${difficulty}
@@ -162,7 +157,7 @@ Triage complete for **${repo}#${issue.number}: ${issue.title}**
 Format it nicely for Slack with emoji. Keep it concise.`;
 
         await sendSessionMessage(sessionId, slackMessage);
-        setSlackNotifiedIssues((prev) => new Set(prev).add(issue.number));
+        setSlackNotifiedIssues((prev) => new Set(prev).add(issueNumber));
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to send Slack notification";
         setError(message);
@@ -170,8 +165,30 @@ Format it nicely for Slack with emoji. Keep it concise.`;
         setSlackLoadingIssue(null);
       }
     },
-    [repo, trackedIssues]
+    [repo]
   );
+
+  // -----------------------------------------------------------------------
+  // Auto-notify Slack when triage completes
+  // -----------------------------------------------------------------------
+  const prevTrackedRef = useRef<Map<number, TrackedIssue>>(new Map());
+
+  useEffect(() => {
+    const prev = prevTrackedRef.current;
+    for (const [num, tracked] of Array.from(trackedIssues.entries())) {
+      // Skip if already notified or currently sending
+      if (slackNotifiedIssues.has(num) || slackLoadingIssue === num) continue;
+      // Check if triage_result just appeared (wasn't there before)
+      const prevTracked = prev.get(num);
+      if (tracked.triage_result && (!prevTracked || !prevTracked.triage_result)) {
+        const sessionId = tracked.triage_session_id;
+        if (sessionId) {
+          sendSlackNotification(num, tracked.title || `Issue #${num}`, sessionId, tracked.triage_result);
+        }
+      }
+    }
+    prevTrackedRef.current = new Map(trackedIssues);
+  }, [trackedIssues, slackNotifiedIssues, slackLoadingIssue, sendSlackNotification]);
 
   const handleSync = useCallback(async (sessionId: string) => {
     try {
@@ -275,7 +292,6 @@ Format it nicely for Slack with emoji. Keep it concise.`;
             repo={repo}
             onTriage={handleTriage}
             onFix={handleFix}
-            onNotifySlack={handleNotifySlack}
             triageLoadingIssue={triageLoadingIssue}
             fixLoadingIssue={fixLoadingIssue}
             slackNotifiedIssues={slackNotifiedIssues}

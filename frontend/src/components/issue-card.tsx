@@ -21,7 +21,6 @@ interface IssueCardProps {
   repo: string;
   onTriage: () => void;
   onFix: () => void;
-  onNotifySlack: () => void;
   triageLoading: boolean;
   fixLoading: boolean;
   slackNotified: boolean;
@@ -64,7 +63,6 @@ export default function IssueCard({
   repo,
   onTriage,
   onFix,
-  onNotifySlack,
   triageLoading,
   fixLoading,
   slackNotified,
@@ -174,7 +172,7 @@ export default function IssueCard({
           <TriageResultPanel result={tracked.triage_result} repo={repo} />
           {/* Slack notify + Devin link row after triage */}
           <div className="mt-2 flex items-center gap-2 flex-wrap">
-            <SlackNotifyButton onClick={onNotifySlack} notified={slackNotified} loading={slackLoading} />
+            <SlackStatusIndicator notified={slackNotified} loading={slackLoading} />
             {tracked.devin_url && (
               <a
                 href={tracked.devin_url}
@@ -323,15 +321,25 @@ function TriageResultPanel({ result, repo }: { result: NonNullable<TrackedIssue[
   );
 }
 
-function SlackNotifyButton({
-  onClick,
+function SlackStatusIndicator({
   notified,
   loading,
 }: {
-  onClick: () => void;
   notified: boolean;
   loading: boolean;
 }) {
+  if (loading) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-md bg-purple-50 px-2 py-1 text-xs font-medium text-purple-700">
+        <svg className="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+        </svg>
+        Notifying Slack...
+      </span>
+    );
+  }
+
   if (notified) {
     return (
       <span className="inline-flex items-center gap-1 rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700">
@@ -343,25 +351,7 @@ function SlackNotifyButton({
     );
   }
 
-  return (
-    <button
-      onClick={onClick}
-      disabled={loading}
-      className="inline-flex items-center gap-1 rounded-md bg-purple-50 px-2 py-1 text-xs font-medium text-purple-700 hover:bg-purple-100 disabled:opacity-50 transition-colors"
-    >
-      {loading ? (
-        <svg className="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-        </svg>
-      ) : (
-        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
-        </svg>
-      )}
-      {loading ? "Sending..." : "Notify on Slack"}
-    </button>
-  );
+  return null;
 }
 
 function StatusBadge({ status }: { status: string }) {
