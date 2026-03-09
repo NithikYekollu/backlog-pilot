@@ -240,13 +240,14 @@ def parse_triage_json(text: str) -> dict[str, Any] | None:
         except json.JSONDecodeError:
             pass
 
-    # 3) First bare JSON object (brace-counting to handle nested braces)
-    start = text.find("{")
-    if start != -1:
+    # 3) Bare JSON objects (brace-counting to handle nested braces)
+    #    Try each '{' as a potential start; on parse failure continue to next '{'.
+    pos = text.find("{")
+    while pos != -1:
         depth = 0
         in_string = False
         escape = False
-        for i in range(start, len(text)):
+        for i in range(pos, len(text)):
             ch = text[i]
             if escape:
                 escape = False
@@ -264,13 +265,15 @@ def parse_triage_json(text: str) -> dict[str, Any] | None:
             elif ch == "}":
                 depth -= 1
                 if depth == 0:
-                    candidate = text[start : i + 1]
+                    candidate = text[pos : i + 1]
                     try:
                         obj = json.loads(candidate)
                         logger.debug("Parsed triage JSON from bare braces")
                         return obj
                     except json.JSONDecodeError:
                         break
+        # Move to next '{' after the failed start
+        pos = text.find("{", pos + 1)
 
     logger.warning("Could not extract triage JSON from response text (length=%d)", len(text))
     return None
