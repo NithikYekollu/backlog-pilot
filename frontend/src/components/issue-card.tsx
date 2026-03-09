@@ -39,6 +39,25 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(diffDays / 365)}y ago`;
 }
 
+/**
+ * Given a hex color (without #), return a text color that is readable
+ * on a light tinted background. Darkens light colors so they don't look washed out.
+ */
+function getLabelTextColor(hex: string): string {
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+  // Perceived luminance (sRGB)
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  if (luminance > 0.6) {
+    // Light color — darken it significantly for readability
+    const factor = 0.4;
+    return `rgb(${Math.round(r * factor)}, ${Math.round(g * factor)}, ${Math.round(b * factor)})`;
+  }
+  // Already dark enough — use as-is
+  return `#${hex}`;
+}
+
 const difficultyColors: Record<string, string> = {
   easy: "bg-green-100 text-green-800 border-green-200",
   medium: "bg-yellow-100 text-yellow-800 border-yellow-200",
@@ -94,19 +113,22 @@ export default function IssueCard({
           {/* Labels */}
           {issue.labels.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-2">
-              {issue.labels.map((label) => (
-                <span
-                  key={label.id}
-                  className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
-                  style={{
-                    backgroundColor: `#${label.color}20`,
-                    color: `#${label.color}`,
-                    border: `1px solid #${label.color}40`,
-                  }}
-                >
-                  {label.name}
-                </span>
-              ))}
+              {issue.labels.map((label) => {
+                const textColor = getLabelTextColor(label.color);
+                return (
+                  <span
+                    key={label.id}
+                    className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold"
+                    style={{
+                      backgroundColor: `#${label.color}22`,
+                      color: textColor,
+                      border: `1px solid #${label.color}55`,
+                    }}
+                  >
+                    {label.name}
+                  </span>
+                );
+              })}
             </div>
           )}
         </div>
