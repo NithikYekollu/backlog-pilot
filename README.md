@@ -74,9 +74,22 @@ The frontend runs at **http://localhost:3000**.
 2. Enter a GitHub repo (e.g. `facebook/react`)
 3. Click **Load Issues** to see open issues
 4. Click **Run Triage** on any issue to start a Devin triage session
-5. Once triage completes, click **Refresh Status** to see results
-6. If Devin says it can auto-fix, click **Approve Fix** to start a fix session
-7. Monitor fix progress and see the PR link when complete
+5. Click **Refresh Status** periodically — structured triage results appear progressively
+6. Once triage completes, review the 8-field structured result (summary, difficulty, suspected files, acceptance criteria, etc.)
+7. Click **Approve Fix** to start a Devin fix session on the triaged issue
+8. Click **Refresh Status** to track fix progress — status badges show queued → running → completed/failed
+9. When Devin opens a PR, the PR URL appears prominently below the fix status
+10. Click the **View in Devin** link at any time to see the live Devin session
+
+### Demo Script (Client Presentation)
+
+For a quick 3-minute demo:
+
+1. **Load issues** — Enter a repo with a few manageable open issues (e.g. your own test repo)
+2. **Triage one issue** — Click "Run Triage", wait ~30s, hit "Refresh Status". Show the structured output: difficulty badge, suspected files, acceptance criteria
+3. **Approve the fix** — Click "Approve Fix". Show the running status badge and session ID
+4. **Show the PR** — After Devin finishes, refresh to show the PR URL. Click through to the actual GitHub PR
+5. **Highlight key points**: real Devin API integration, structured triage schema, progressive status updates, one-click approval flow
 
 ## API Keys
 
@@ -119,7 +132,8 @@ backlog-pilot/
 │   ├── .env.example
 │   └── package.json
 └── docs/
-    └── plan.md            # Architecture & implementation plan
+    ├── plan.md            # Architecture & implementation plan
+    └── triage-schema.md   # Structured triage schema reference
 ```
 
 ## Development

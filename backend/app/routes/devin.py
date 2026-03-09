@@ -359,24 +359,27 @@ def _try_extract_triage_result(tracked: TrackedIssue, session: DevinSessionRespo
 
 
 def _try_extract_pr_url(tracked: TrackedIssue, session: DevinSessionResponse) -> None:
-    """Try to pull a PR URL from the session's output."""
+    """Try to pull a PR URL from the session's output.
+
+    Devin may update structured_output with a pr_url while the session is
+    still running, so we attempt extraction regardless of status.
+    """
     if tracked.pr_url:
         return
-    if session.status != "finished":
-        return
 
-    # 1) structured_output
+    # 1) structured_output (available while running)
     structured = session.structured_output
     if structured and isinstance(structured, dict):
-        # TODO: Confirm the actual field name(s) Devin uses for PR URLs.
         pr_url = structured.get("pr_url") or structured.get("pull_request_url")
         if pr_url:
             tracked.pr_url = pr_url
+            logger.info("Extracted PR URL from structured_output: %s", pr_url)
             return
 
-    # 2) Last assistant message
+    # 2) Last assistant message (check anytime, most useful when finished)
     last_text = get_last_assistant_text(session)
     if last_text:
         pr_url = extract_pr_url(last_text)
         if pr_url:
             tracked.pr_url = pr_url
+            logger.info("Extracted PR URL from conversation: %s", pr_url)

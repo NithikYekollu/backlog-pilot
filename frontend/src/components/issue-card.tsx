@@ -48,6 +48,7 @@ const difficultyColors: Record<string, string> = {
 };
 
 const statusLabels: Record<string, { label: string; color: string }> = {
+  queued: { label: "Queued", color: "bg-purple-100 text-purple-800" },
   running: { label: "Running", color: "bg-blue-100 text-blue-800" },
   finished: { label: "Completed", color: "bg-green-100 text-green-800" },
   failed: { label: "Failed", color: "bg-red-100 text-red-800" },
@@ -129,7 +130,7 @@ export default function IssueCard({
             </button>
           )}
 
-          {hasTriage && tracked?.triage_result && getTriageAutofix(tracked.triage_result) && !tracked.fix_session_id && (
+          {hasTriage && !tracked?.fix_session_id && (
             <button
               onClick={onFix}
               disabled={fixLoading}
@@ -166,28 +167,38 @@ export default function IssueCard({
 
       {/* Fix Status */}
       {tracked?.fix_status && (
-        <div className="mt-3 flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-gray-500">Fix:</span>
-          <StatusBadge status={tracked.fix_status} />
-          {tracked.devin_url && (
-            <a
-              href={tracked.devin_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-indigo-600 hover:underline"
-            >
-              View in Devin
-            </a>
-          )}
+        <div className="mt-3 space-y-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-gray-500">Fix:</span>
+            <StatusBadge status={tracked.fix_status} />
+            {tracked.fix_session_id && (
+              <span className="text-xs font-mono text-gray-400" title={tracked.fix_session_id}>
+                {tracked.fix_session_id.slice(0, 8)}
+              </span>
+            )}
+            {tracked.devin_url && (
+              <a
+                href={tracked.devin_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-indigo-600 hover:underline"
+              >
+                View in Devin
+              </a>
+            )}
+          </div>
           {tracked.pr_url && (
-            <a
-              href={tracked.pr_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 transition-colors"
-            >
-              View PR
-            </a>
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 flex items-center gap-2">
+              <span className="text-sm font-medium text-emerald-800">PR Ready:</span>
+              <a
+                href={tracked.pr_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm font-semibold text-emerald-700 hover:text-emerald-900 underline underline-offset-2 transition-colors"
+              >
+                {tracked.pr_url}
+              </a>
+            </div>
           )}
         </div>
       )}
