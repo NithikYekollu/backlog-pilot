@@ -6,7 +6,7 @@
  */
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import Header from "@/components/header";
 import ConfigBanner from "@/components/config-banner";
 import RepoInput from "@/components/repo-input";
@@ -161,6 +161,45 @@ export default function Home() {
       setError(message);
     }
   }, []);
+
+  // -----------------------------------------------------------------------
+  // Auto-polling: refresh every 15s while any session is running
+  // -----------------------------------------------------------------------
+  const pollTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    // Collect session IDs that are in a non-terminal state
+    const TERMINAL = new Set(["finished", "failed", "stopped"]);
+    const activeSessions: string[] = [];
+
+    for (const t of trackedIssues.values()) {
+      if (t.triage_session_id && t.triage_status && !TERMINAL.has(t.triage_status) && !t.triage_result) {
+        activeSessions.push(t.triage_session_id);
+      }
+      if (t.fix_session_id && t.fix_status && !TERMINAL.has(t.fix_status) && !t.pr_url) {
+        activeSessions.push(t.fix_session_id);
+      }
+    }
+
+    // Clear any existing timer
+    if (pollTimerRef.current) {
+      clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+
+    if (activeSessions.length === 0) return;
+
+    pollTimerRef.current = setInterval(() => {
+      activeSessions.forEach((sid) => handleSync(sid));
+    }, 15_000);
+
+    return () => {
+      if (pollTimerRef.current) {
+        clearInterval(pollTimerRef.current);
+        pollTimerRef.current = null;
+      }
+    };
+  }, [trackedIssues, handleSync]);
 
   return (
     <div className="min-h-screen bg-gray-50">
