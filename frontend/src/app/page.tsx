@@ -17,6 +17,7 @@ import {
   createTriageSession,
   createFixSession,
   syncSession,
+  sendSessionMessage,
 } from "@/lib/api";
 
 export default function Home() {
@@ -30,6 +31,8 @@ export default function Home() {
   const [triageLoadingIssue, setTriageLoadingIssue] = useState<number | null>(null);
   const [fixLoadingIssue, setFixLoadingIssue] = useState<number | null>(null);
   const [hasApiKeys, setHasApiKeys] = useState(true);
+  const [slackNotifiedIssues, setSlackNotifiedIssues] = useState<Set<number>>(new Set());
+  const [slackLoadingIssue, setSlackLoadingIssue] = useState<number | null>(null);
 
   const handleLoadIssues = useCallback(async (repoName: string) => {
     setRepo(repoName);
@@ -123,6 +126,48 @@ export default function Home() {
         setError(message);
       } finally {
         setFixLoadingIssue(null);
+      }
+    },
+    [repo, trackedIssues]
+  );
+
+  const handleNotifySlack = useCallback(
+    async (issue: GitHubIssue) => {
+      const tracked = trackedIssues.get(issue.number);
+      const sessionId = tracked?.triage_session_id;
+      if (!sessionId) return;
+
+      setSlackLoadingIssue(issue.number);
+      try {
+        const triageResult = tracked?.triage_result;
+        const summary = triageResult?.issue_summary || triageResult?.summary || issue.title;
+        const difficulty = triageResult?.difficulty || "unknown";
+        const area = triageResult?.likely_area || "unknown";
+        const files = triageResult?.suspected_files?.join(", ") || "none identified";
+        const autofix = triageResult?.safe_to_autofix ? "Yes" : "No";
+
+        const slackMessage = `Please post the following triage summary to the connected Slack channel:
+
+---
+Triage complete for **${repo}#${issue.number}: ${issue.title}**
+
+- **Summary:** ${summary}
+- **Difficulty:** ${difficulty}
+- **Area:** ${area}
+- **Suspected files:** ${files}
+- **Safe to autofix:** ${autofix}
+- **Dashboard:** View full details in Backlog Pilot
+---
+
+Format it nicely for Slack with emoji. Keep it concise.`;
+
+        await sendSessionMessage(sessionId, slackMessage);
+        setSlackNotifiedIssues((prev) => new Set(prev).add(issue.number));
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Failed to send Slack notification";
+        setError(message);
+      } finally {
+        setSlackLoadingIssue(null);
       }
     },
     [repo, trackedIssues]
@@ -230,8 +275,11 @@ export default function Home() {
             repo={repo}
             onTriage={handleTriage}
             onFix={handleFix}
+            onNotifySlack={handleNotifySlack}
             triageLoadingIssue={triageLoadingIssue}
             fixLoadingIssue={fixLoadingIssue}
+            slackNotifiedIssues={slackNotifiedIssues}
+            slackLoadingIssue={slackLoadingIssue}
             loading={loading}
           />
         )}

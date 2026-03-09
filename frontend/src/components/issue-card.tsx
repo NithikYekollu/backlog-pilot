@@ -21,8 +21,11 @@ interface IssueCardProps {
   repo: string;
   onTriage: () => void;
   onFix: () => void;
+  onNotifySlack: () => void;
   triageLoading: boolean;
   fixLoading: boolean;
+  slackNotified: boolean;
+  slackLoading: boolean;
 }
 
 function timeAgo(dateStr: string): string {
@@ -61,8 +64,11 @@ export default function IssueCard({
   repo,
   onTriage,
   onFix,
+  onNotifySlack,
   triageLoading,
   fixLoading,
+  slackNotified,
+  slackLoading,
 }: IssueCardProps) {
   const hasTriage = tracked?.triage_result;
   const triageRunning = tracked?.triage_status === "running";
@@ -164,7 +170,26 @@ export default function IssueCard({
 
       {/* Triage Result */}
       {hasTriage && tracked?.triage_result && (
-        <TriageResultPanel result={tracked.triage_result} repo={repo} />
+        <>
+          <TriageResultPanel result={tracked.triage_result} repo={repo} />
+          {/* Slack notify + Devin link row after triage */}
+          <div className="mt-2 flex items-center gap-2 flex-wrap">
+            <SlackNotifyButton onClick={onNotifySlack} notified={slackNotified} loading={slackLoading} />
+            {tracked.devin_url && (
+              <a
+                href={tracked.devin_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 rounded-md bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-100 transition-colors"
+              >
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                </svg>
+                View in Devin
+              </a>
+            )}
+          </div>
+        </>
       )}
 
       {/* Fix Status */}
@@ -295,6 +320,47 @@ function TriageResultPanel({ result, repo }: { result: NonNullable<TrackedIssue[
         </p>
       )}
     </div>
+  );
+}
+
+function SlackNotifyButton({
+  onClick,
+  notified,
+  loading,
+}: {
+  onClick: () => void;
+  notified: boolean;
+  loading: boolean;
+}) {
+  if (notified) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700">
+        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+        </svg>
+        Slack notified
+      </span>
+    );
+  }
+
+  return (
+    <button
+      onClick={onClick}
+      disabled={loading}
+      className="inline-flex items-center gap-1 rounded-md bg-purple-50 px-2 py-1 text-xs font-medium text-purple-700 hover:bg-purple-100 disabled:opacity-50 transition-colors"
+    >
+      {loading ? (
+        <svg className="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+        </svg>
+      ) : (
+        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+        </svg>
+      )}
+      {loading ? "Sending..." : "Notify on Slack"}
+    </button>
   );
 }
 
