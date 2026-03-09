@@ -6,6 +6,7 @@ import IssueCard from "./issue-card";
 interface IssueListProps {
   issues: GitHubIssue[];
   trackedIssues: Map<number, TrackedIssue>;
+  repo: string;
   onTriage: (issue: GitHubIssue) => void;
   onFix: (issue: GitHubIssue) => void;
   triageLoadingIssue: number | null;
@@ -16,6 +17,7 @@ interface IssueListProps {
 export default function IssueList({
   issues,
   trackedIssues,
+  repo,
   onTriage,
   onFix,
   triageLoadingIssue,
@@ -65,6 +67,7 @@ export default function IssueList({
             key={issue.number}
             issue={issue}
             tracked={tracked}
+            repo={repo}
             onTriage={() => onTriage(issue)}
             onFix={() => onFix(issue)}
             triageLoading={triageLoadingIssue === issue.number}

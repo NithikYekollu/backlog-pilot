@@ -227,6 +227,7 @@ export default function Home() {
           <IssueList
             issues={issues}
             trackedIssues={trackedIssues}
+            repo={repo}
             onTriage={handleTriage}
             onFix={handleFix}
             triageLoadingIssue={triageLoadingIssue}
