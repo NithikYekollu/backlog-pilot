@@ -23,8 +23,6 @@ interface IssueCardProps {
   onFix: () => void;
   triageLoading: boolean;
   fixLoading: boolean;
-  slackNotified: boolean;
-  slackLoading: boolean;
 }
 
 function timeAgo(dateStr: string): string {
@@ -84,8 +82,6 @@ export default function IssueCard({
   onFix,
   triageLoading,
   fixLoading,
-  slackNotified,
-  slackLoading,
 }: IssueCardProps) {
   const hasTriage = tracked?.triage_result;
   const triageRunning = tracked?.triage_status === "running";
@@ -192,10 +188,9 @@ export default function IssueCard({
       {hasTriage && tracked?.triage_result && (
         <>
           <TriageResultPanel result={tracked.triage_result} repo={repo} />
-          {/* Slack notify + Devin link row after triage */}
-          <div className="mt-2 flex items-center gap-2 flex-wrap">
-            <SlackStatusIndicator notified={slackNotified} loading={slackLoading} />
-            {tracked.devin_url && (
+          {/* Devin link row after triage */}
+          {tracked.devin_url && (
+            <div className="mt-2 flex items-center gap-2 flex-wrap">
               <a
                 href={tracked.devin_url}
                 target="_blank"
@@ -207,8 +202,8 @@ export default function IssueCard({
                 </svg>
                 View in Devin
               </a>
-            )}
-          </div>
+            </div>
+          )}
         </>
       )}
 
@@ -341,39 +336,6 @@ function TriageResultPanel({ result, repo }: { result: NonNullable<TrackedIssue[
       )}
     </div>
   );
-}
-
-function SlackStatusIndicator({
-  notified,
-  loading,
-}: {
-  notified: boolean;
-  loading: boolean;
-}) {
-  if (loading) {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-md bg-purple-50 px-2 py-1 text-xs font-medium text-purple-700">
-        <svg className="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-        </svg>
-        Notifying Slack...
-      </span>
-    );
-  }
-
-  if (notified) {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700">
-        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-        </svg>
-        Slack notified
-      </span>
-    );
-  }
-
-  return null;
 }
 
 function StatusBadge({ status }: { status: string }) {

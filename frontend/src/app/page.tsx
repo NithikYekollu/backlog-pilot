@@ -30,7 +30,6 @@ export default function Home() {
   const [triageLoadingIssue, setTriageLoadingIssue] = useState<number | null>(null);
   const [fixLoadingIssue, setFixLoadingIssue] = useState<number | null>(null);
   const [hasApiKeys, setHasApiKeys] = useState(true);
-  const [slackNotifiedIssues, setSlackNotifiedIssues] = useState<Set<number>>(new Set());
 
   const handleLoadIssues = useCallback(async (repoName: string) => {
     setRepo(repoName);
@@ -129,27 +128,6 @@ export default function Home() {
     [repo, trackedIssues]
   );
 
-  // -----------------------------------------------------------------------
-  // Auto-mark Slack notified when triage completes.
-  // Devin's native Slack integration sends DM notifications when session
-  // status changes, so we just track which issues have been notified
-  // to show the badge in the UI.
-  // -----------------------------------------------------------------------
-  const prevTrackedRef = useRef<Map<number, TrackedIssue>>(new Map());
-
-  useEffect(() => {
-    const prev = prevTrackedRef.current;
-    for (const [num, tracked] of Array.from(trackedIssues.entries())) {
-      if (slackNotifiedIssues.has(num)) continue;
-      const prevTracked = prev.get(num);
-      if (tracked.triage_result && (!prevTracked || !prevTracked.triage_result)) {
-        // Triage just completed — Devin sends a Slack DM natively.
-        // Mark as notified so the badge appears in the UI.
-        setSlackNotifiedIssues((prev) => new Set(prev).add(num));
-      }
-    }
-    prevTrackedRef.current = new Map(trackedIssues);
-  }, [trackedIssues, slackNotifiedIssues]);
 
   const handleSync = useCallback(async (sessionId: string) => {
     try {
@@ -266,8 +244,6 @@ export default function Home() {
             onFix={handleFix}
             triageLoadingIssue={triageLoadingIssue}
             fixLoadingIssue={fixLoadingIssue}
-            slackNotifiedIssues={slackNotifiedIssues}
-            slackLoadingIssue={null}
             loading={loading}
           />
         )}

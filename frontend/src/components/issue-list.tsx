@@ -11,8 +11,6 @@ interface IssueListProps {
   onFix: (issue: GitHubIssue) => void;
   triageLoadingIssue: number | null;
   fixLoadingIssue: number | null;
-  slackNotifiedIssues: Set<number>;
-  slackLoadingIssue: number | null;
   loading: boolean;
 }
 
@@ -24,8 +22,6 @@ export default function IssueList({
   onFix,
   triageLoadingIssue,
   fixLoadingIssue,
-  slackNotifiedIssues,
-  slackLoadingIssue,
   loading,
 }: IssueListProps) {
   if (loading) {
@@ -76,8 +72,6 @@ export default function IssueList({
             onFix={() => onFix(issue)}
             triageLoading={triageLoadingIssue === issue.number}
             fixLoading={fixLoadingIssue === issue.number}
-            slackNotified={slackNotifiedIssues.has(issue.number)}
-            slackLoading={slackLoadingIssue === issue.number}
           />
         );
       })}
