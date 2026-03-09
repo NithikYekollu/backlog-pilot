@@ -176,7 +176,17 @@ export default function Home() {
           }
           if (ti.issue_number !== 0) {
             const existing = next.get(ti.issue_number);
-            next.set(ti.issue_number, { ...existing, ...ti });
+            // Only overwrite fields that are non-null in the backend response
+            // to avoid race conditions where a stale sync overwrites local state
+            // (e.g., backend returns fix_session_id: null after user just clicked Approve Fix).
+            const merged: TrackedIssue = { ...existing } as TrackedIssue;
+            for (const key of Object.keys(ti) as Array<keyof TrackedIssue>) {
+              if (ti[key] != null) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (merged as any)[key] = ti[key];
+              }
+            }
+            next.set(ti.issue_number, merged);
           }
           return next;
         });
