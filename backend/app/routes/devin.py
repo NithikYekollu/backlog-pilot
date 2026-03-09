@@ -148,16 +148,11 @@ def _handle_devin_error(exc: DevinAPIError) -> HTTPException:
 @router.post("/triage")
 async def create_triage_session(request: TriageRequest):
     """Create a Devin session to triage a GitHub issue."""
-    # Escape curly braces in user-controlled fields so str.format() doesn't
-    # crash on issue bodies containing code snippets like {name} or JSON.
-    safe_title = request.title.replace("{", "{{").replace("}", "}}")
-    safe_body = (request.body or "(no description provided)").replace("{", "{{").replace("}", "}}")
-
     prompt = TRIAGE_PROMPT_TEMPLATE.format(
         issue_number=request.issue_number,
         repo=request.repo,
-        title=safe_title,
-        body=safe_body,
+        title=request.title,
+        body=request.body or "(no description provided)",
     )
 
     try:
@@ -235,18 +230,12 @@ async def create_fix_session(request: FixRequest):
             parts.append(f"**Acceptance Criteria:**\n{criteria}")
         triage_context = "\n".join(parts)
 
-    # Escape curly braces in user-controlled fields so str.format() doesn't
-    # crash on issue bodies containing code snippets like {name} or JSON.
-    safe_title = request.title.replace("{", "{{").replace("}", "}}")
-    safe_body = (request.body or "(no description provided)").replace("{", "{{").replace("}", "}}")
-    safe_triage_context = triage_context.replace("{", "{{").replace("}", "}}")
-
     prompt = FIX_PROMPT_TEMPLATE.format(
         issue_number=request.issue_number,
         repo=request.repo,
-        title=safe_title,
-        body=safe_body,
-        triage_context=safe_triage_context,
+        title=request.title,
+        body=request.body or "(no description provided)",
+        triage_context=triage_context,
     )
 
     try:
