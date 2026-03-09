@@ -102,8 +102,13 @@ class DevinSessionResponse:
 
     @property
     def conversation(self) -> list[dict[str, Any]]:
-        """Full conversation history between user and Devin."""
-        return self.raw.get("conversation", [])
+        """Full conversation history between user and Devin.
+
+        The Devin API returns this as 'messages' in the session response.
+        Each message has 'type' (e.g. 'devin_message', 'initial_user_message')
+        and 'message' (the text content).
+        """
+        return self.raw.get("messages", self.raw.get("conversation", []))
 
 
 # ---------------------------------------------------------------------------
@@ -272,11 +277,17 @@ def parse_triage_json(text: str) -> dict[str, Any] | None:
 
 
 def get_last_assistant_text(session: DevinSessionResponse) -> str | None:
-    """Return the text content of the last assistant/devin message."""
+    """Return the text content of the last assistant/devin message.
+
+    The Devin API uses 'type' (not 'role') and 'message' (not 'content').
+    Known types: 'devin_message', 'initial_user_message', 'user_message'.
+    """
     for msg in reversed(session.conversation):
+        msg_type = msg.get("type", "")
         role = msg.get("role", "")
-        if role in ("assistant", "devin"):
-            text = msg.get("content", "") or msg.get("text", "")
+        # Match Devin messages by type (preferred) or role (legacy fallback)
+        if msg_type == "devin_message" or role in ("assistant", "devin"):
+            text = msg.get("message", "") or msg.get("content", "") or msg.get("text", "")
             if text:
                 return text
     return None

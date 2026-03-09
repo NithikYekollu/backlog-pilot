@@ -381,16 +381,18 @@ def _try_extract_triage_result(tracked: TrackedIssue, session: DevinSessionRespo
                 best = candidate
                 logger.info("Extracted triage result from structured_output")
 
-    # 2) Fall back to last assistant message (only if session is finished)
-    if session.status == "finished":
-        last_text = get_last_assistant_text(session)
-        if last_text:
-            parsed = parse_triage_json(last_text)
-            if parsed:
-                candidate = _try_build(parsed)
-                if candidate and (not best or _field_count(candidate) > _field_count(best)):
-                    best = candidate
-                    logger.info("Extracted triage result from conversation")
+    # 2) Fall back to last assistant message.
+    #    Devin often puts the triage JSON in conversation text rather than
+    #    structured_output, and the session may be "blocked" (needs_input)
+    #    rather than "finished" when the analysis is complete.
+    last_text = get_last_assistant_text(session)
+    if last_text:
+        parsed = parse_triage_json(last_text)
+        if parsed:
+            candidate = _try_build(parsed)
+            if candidate and (not best or _field_count(candidate) > _field_count(best)):
+                best = candidate
+                logger.info("Extracted triage result from conversation (status=%s)", session.status)
 
     if best and best is not tracked.triage_result:
         tracked.triage_result = best

@@ -121,7 +121,7 @@ export default function IssueCard({
             </button>
           )}
 
-          {(triageRunning || fixRunning || tracked?.triage_status === "blocked" || tracked?.fix_status === "blocked") && (
+          {(triageRunning || fixRunning || tracked?.triage_status === "blocked" || tracked?.fix_status === "blocked" || (tracked?.triage_status === "finished" && !hasTriage) || (tracked?.fix_status === "finished" && !tracked?.pr_url)) && (
             <button
               onClick={onSync}
               className="rounded-lg bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-100 transition-colors whitespace-nowrap"
