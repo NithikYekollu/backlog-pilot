@@ -226,7 +226,7 @@ def parse_triage_json(text: str) -> dict[str, Any] | None:
         pass
 
     # 2) Fenced code block
-    fenced = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
+    fenced = re.search(r"```(?:json)?\s*(\{.*\})\s*```", text, re.DOTALL)
     if fenced:
         try:
             obj = json.loads(fenced.group(1))
@@ -235,15 +235,37 @@ def parse_triage_json(text: str) -> dict[str, Any] | None:
         except json.JSONDecodeError:
             pass
 
-    # 3) First bare JSON object
-    brace = re.search(r"\{[^{}]*\}", text, re.DOTALL)
-    if brace:
-        try:
-            obj = json.loads(brace.group(0))
-            logger.debug("Parsed triage JSON from bare braces")
-            return obj
-        except json.JSONDecodeError:
-            pass
+    # 3) First bare JSON object (brace-counting to handle nested braces)
+    start = text.find("{")
+    if start != -1:
+        depth = 0
+        in_string = False
+        escape = False
+        for i in range(start, len(text)):
+            ch = text[i]
+            if escape:
+                escape = False
+                continue
+            if ch == "\\":
+                escape = True
+                continue
+            if ch == '"':
+                in_string = not in_string
+                continue
+            if in_string:
+                continue
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    candidate = text[start : i + 1]
+                    try:
+                        obj = json.loads(candidate)
+                        logger.debug("Parsed triage JSON from bare braces")
+                        return obj
+                    except json.JSONDecodeError:
+                        break
 
     logger.warning("Could not extract triage JSON from response text (length=%d)", len(text))
     return None
