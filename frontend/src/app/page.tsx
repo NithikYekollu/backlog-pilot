@@ -139,7 +139,7 @@ export default function Home() {
           // If the backend returned a recovered session (issue_number=0),
           // find the local issue that owns this session ID and merge.
           if (ti.issue_number === 0) {
-            for (const [num, existing] of prev.entries()) {
+            for (const [num, existing] of Array.from(prev.entries())) {
               if (existing.triage_session_id === sessionId || existing.fix_session_id === sessionId) {
                 next.set(num, {
                   ...existing,
@@ -172,7 +172,7 @@ export default function Home() {
     const TERMINAL = new Set(["finished", "failed", "stopped"]);
     const activeSessions: string[] = [];
 
-    for (const t of trackedIssues.values()) {
+    for (const t of Array.from(trackedIssues.values())) {
       if (t.triage_session_id && t.triage_status && !TERMINAL.has(t.triage_status) && !t.triage_result) {
         activeSessions.push(t.triage_session_id);
       }
