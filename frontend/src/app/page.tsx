@@ -17,7 +17,6 @@ import {
   createTriageSession,
   createFixSession,
   syncSession,
-  notifySlack,
 } from "@/lib/api";
 
 export default function Home() {
@@ -131,51 +130,26 @@ export default function Home() {
   );
 
   // -----------------------------------------------------------------------
-  // Auto-notify Slack when triage completes via backend webhook.
-  // Uses a ref to detect when triage_result first appears for an issue,
-  // then calls the backend /notify-slack endpoint which posts directly
-  // to Slack via incoming webhook.
+  // Auto-mark Slack notified when triage completes.
+  // Devin's native Slack integration sends DM notifications when session
+  // status changes, so we just track which issues have been notified
+  // to show the badge in the UI.
   // -----------------------------------------------------------------------
   const prevTrackedRef = useRef<Map<number, TrackedIssue>>(new Map());
-  const slackPendingRef = useRef<Set<number>>(new Set());
 
   useEffect(() => {
     const prev = prevTrackedRef.current;
     for (const [num, tracked] of Array.from(trackedIssues.entries())) {
       if (slackNotifiedIssues.has(num)) continue;
-      if (slackPendingRef.current.has(num)) continue;
       const prevTracked = prev.get(num);
       if (tracked.triage_result && (!prevTracked || !prevTracked.triage_result)) {
-        // Triage just completed — call backend to post to Slack
-        slackPendingRef.current.add(num);
-        notifySlack(
-          repo,
-          num,
-          tracked.title || `Issue #${num}`,
-          tracked.triage_result,
-          typeof window !== "undefined" ? window.location.href : undefined,
-        )
-          .then((res) => {
-            if (res.ok) {
-              setSlackNotifiedIssues((prev) => new Set(prev).add(num));
-            } else {
-              console.warn("Slack notify failed:", res.error);
-              // Still mark as notified to avoid retrying in a loop
-              setSlackNotifiedIssues((prev) => new Set(prev).add(num));
-            }
-          })
-          .catch((err) => {
-            console.error("Slack notify error:", err);
-            // Mark as notified to prevent infinite retries
-            setSlackNotifiedIssues((prev) => new Set(prev).add(num));
-          })
-          .finally(() => {
-            slackPendingRef.current.delete(num);
-          });
+        // Triage just completed — Devin sends a Slack DM natively.
+        // Mark as notified so the badge appears in the UI.
+        setSlackNotifiedIssues((prev) => new Set(prev).add(num));
       }
     }
     prevTrackedRef.current = new Map(trackedIssues);
-  }, [trackedIssues, slackNotifiedIssues, repo]);
+  }, [trackedIssues, slackNotifiedIssues]);
 
   const handleSync = useCallback(async (sessionId: string) => {
     try {
