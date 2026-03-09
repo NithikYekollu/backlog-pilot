@@ -201,7 +201,8 @@ export default function Home() {
             }
           }
           if (ti.issue_number !== 0) {
-            next.set(ti.issue_number, ti);
+            const existing = next.get(ti.issue_number);
+            next.set(ti.issue_number, { ...existing, ...ti });
           }
           return next;
         });

@@ -260,6 +260,8 @@ async def create_fix_session(request: FixRequest):
     tracked.fix_session_id = session.session_id
     tracked.fix_status = "running"
     tracked.devin_url = session.url
+    if request.triage_result and not tracked.triage_result:
+        tracked.triage_result = request.triage_result
     upsert_tracked_issue(tracked)
 
     return {
