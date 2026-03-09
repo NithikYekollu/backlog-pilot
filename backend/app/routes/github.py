@@ -18,7 +18,7 @@ router = APIRouter()
 
 GITHUB_API_BASE = "https://api.github.com"
 
-_REPO_RE = re.compile(r"^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$")
+_REPO_RE = re.compile(r"^[a-zA-Z0-9]([a-zA-Z0-9._-]*[a-zA-Z0-9])?/[a-zA-Z0-9]([a-zA-Z0-9._-]*[a-zA-Z0-9])?$")
 
 
 def _validate_repo(repo: str) -> None:
