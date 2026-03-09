@@ -41,56 +41,94 @@ router = APIRouter()
 #       The JSON-only instruction works well but Devin sometimes wraps in
 #       markdown code fences — the parser handles that case.
 
-TRIAGE_PROMPT_TEMPLATE = """You are triaging GitHub issue #{issue_number} from the repo {repo}.
+TRIAGE_PROMPT_TEMPLATE = """You are triaging GitHub issue #{issue_number} from the repository {repo}.
 
-**Issue Title:** {title}
+**Issue title:** {title}
 
-**Issue Body:**
+**Issue body:**
 {body}
 
 ---
 
-Please analyze this issue and provide a structured triage assessment.
-Update your structured output immediately with the following JSON schema.
-Keep updating it as you refine your analysis.
+### Instructions
+
+1. **Restate the issue** — Write a clear one-sentence summary of what the reporter is describing. Do not copy the title verbatim; distill the core problem.
+
+2. **Inspect relevant code** — Clone the repository if needed. Navigate the codebase to identify the components, modules, and files most likely involved. Read the actual source code rather than guessing from file names alone.
+
+3. **Identify likely area and files** — Name the architectural area (e.g. "authentication middleware", "database migration layer", "React component tree") and list specific file paths you inspected.
+
+4. **Estimate difficulty** — Rate as `easy` (isolated change, clear fix), `medium` (touches multiple files or requires careful reasoning), or `hard` (cross-cutting, risky, or poorly understood area).
+
+5. **Assess autonomous fix safety** — Determine whether this issue can be safely fixed without human intervention. Set `safe_to_autofix` to `true` only if: the fix is well-scoped, unlikely to introduce regressions, and you are confident in the approach. When in doubt, set it to `false`.
+
+6. **Flag ambiguity** — If the issue description is vague, missing reproduction steps, or could be interpreted multiple ways, set `needs_human_clarification` to `true`.
+
+7. **Propose acceptance criteria** — List the concrete conditions that must hold for this issue to be considered resolved (e.g. "Login form no longer throws 500 on empty email", "Unit test added for edge case").
+
+8. **Recommend next step** — State the single most useful next action (e.g. "Patch the validation logic in `src/auth/login.ts:45`", "Add a migration to backfill the missing column").
+
+### Structured output
+
+Update your `structured_output` immediately and keep refining it as you analyze. Return **only** these fields:
 
 {{
-  "issue_summary": "<one-sentence summary of the issue>",
-  "likely_area": "<area of the codebase most likely affected, e.g. 'authentication', 'API layer'>",
-  "suspected_files": ["<file paths you think are involved>"],
+  "issue_summary": "<one-sentence distillation of the issue>",
+  "likely_area": "<architectural area of the codebase>",
+  "suspected_files": ["<file paths you inspected and believe are involved>"],
   "difficulty": "<easy|medium|hard>",
-  "safe_to_autofix": <true if Devin can confidently fix this autonomously, false otherwise>,
-  "needs_human_clarification": <true if the issue is ambiguous or missing info>,
-  "acceptance_criteria": ["<what must be true for this issue to be considered resolved>"],
-  "recommended_next_step": "<concrete next action, e.g. 'Patch validation logic in src/auth.ts'>"
+  "safe_to_autofix": <true|false>,
+  "needs_human_clarification": <true|false>,
+  "acceptance_criteria": ["<condition that must hold when resolved>"],
+  "recommended_next_step": "<concrete next action>"
 }}
 
-Also respond with ONLY this JSON object in your message (no markdown, no code fences).
-Be concise but specific.
+Do not include any fields outside this schema. Be concise but specific.
 """
 
-FIX_PROMPT_TEMPLATE = """Fix GitHub issue #{issue_number} from the repo {repo}.
+FIX_PROMPT_TEMPLATE = """You are fixing GitHub issue #{issue_number} from the repository {repo}.
 
-**Issue Title:** {title}
+**Issue title:** {title}
 
-**Issue Body:**
+**Issue body:**
 {body}
 
 {triage_context}
 
-Please:
-1. Clone the repository if needed
-2. Analyze the issue and codebase
-3. Implement the fix
-4. Create a pull request with your changes
-5. Make sure tests pass
+---
 
-Update your structured output with progress as you work:
+### Instructions
+
+1. **Understand before changing** — Read the issue carefully. If triage context is provided above, use it as a starting point but verify the analysis yourself. Do not blindly trust triage output.
+
+2. **Inspect the code** — Navigate to the suspected files and surrounding code. Understand the existing patterns, conventions, and test coverage before making changes.
+
+3. **Reproduce or reason** — If the issue describes a bug, try to reproduce it or reason through the code path to confirm the root cause. If you cannot reproduce or confirm, surface this as a blocker instead of guessing.
+
+4. **Make the smallest safe fix** — Change only what is necessary. Prefer targeted edits over refactors. Follow existing code style and conventions. Do not introduce new dependencies unless absolutely required.
+
+5. **Run checks** — Run the project's test suite, linter, and type checker if available. Fix any failures your changes introduce. If the project has no tests, note this in your PR description.
+
+6. **Surface blockers** — If you encounter ambiguity that is too high to resolve confidently, stop and say so rather than shipping a guess. Explain what you are unsure about and what information would unblock you.
+
+7. **Open a pull request** — Create a PR with a clear title referencing the issue (e.g. "Fix #42: Prevent 500 on empty email login"), a description summarizing what you changed and why, and a list of files modified.
+
+8. **Update structured output** — Keep your `structured_output` updated as you work:
+
 {{
-  "status": "in_progress",
-  "current_task": "<what you are doing now>",
+  "status": "<in_progress|blocked|completed>",
+  "current_task": "<what you are doing right now>",
+  "files_changed": ["<files you have modified>"],
   "pr_url": "<URL of the pull request once created>"
 }}
+
+### Guardrails
+
+- Do NOT force-push, rebase, or amend commits.
+- Do NOT modify unrelated files or clean up code outside the scope of the issue.
+- Do NOT skip tests to make CI pass.
+- If the fix requires a database migration, flag it for human review instead of running it.
+- If you are less than 80% confident in your fix, set status to "blocked" and explain why.
 """
 
 
